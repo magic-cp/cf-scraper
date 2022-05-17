@@ -6,6 +6,8 @@ Date of when codeforces was studied for scraping: 2022-05-16
 """
 import requests
 import pprint
+import csv
+import os
 
 from bs4 import BeautifulSoup
 
@@ -15,6 +17,23 @@ STATEMENT_SELECTOR = '.header + div'
 INPUT_SPECIFICATION_SELECTOR = '.input-specification'
 OUTPUT_SPECIFICATION_SELECTOR = '.output-specification'
 
+DATASET_FILE = os.path.join('dataset', 'cf_problems.csv')
+INPUT_FILE = os.path.join('dataset', 'input.csv')
+
+CONTEST_ID = 'contest_id'
+PROBLEM_ID = 'problem_id'
+TITLE = 'title'
+STATEMENT = 'statement'
+INPUT_SPEC = 'input_spec'
+OUTPUT_SPEC = 'output_spec'
+
+def get_csv_reader(file_name):
+    with open(file_name, 'w+') as csv_file:
+        return csv.DictReader(csv_file)
+
+def get_csv_writer(file_name):
+    with open(file_name, 'w+') as csv_file:
+        return csv.DictWriter(csv_file, fieldnames=[CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC])
 
 def get_problem_title(soup: BeautifulSoup):
     # we splice because the problem title has the problem id in it e.g. "A. Bit++"
@@ -38,23 +57,45 @@ def get_problem_details(contest_id, problem_id):
 
     soup = BeautifulSoup(page.content, "html.parser").select_one(PROBLEM_STATEMENT_SELECTOR)
 
-    print(soup)
-
-    for elem in soup.select(TITLE_SELECTOR):
-        print(elem.text)
-        print(elem)
-        print(type(elem))
-
+    # print(soup)
     return {
-        'contest_id': contest_id,
-        'problem_id': problem_id,
-        'title': get_problem_title(soup),
-        'statement': get_problem_statement(soup),
-        'input_spec': get_input_spec(soup),
-        'output_spec': get_output_spec(soup)
+        CONTEST_ID: contest_id,
+        PROBLEM_ID: problem_id,
+        TITLE: get_problem_title(soup),
+        STATEMENT: get_problem_statement(soup),
+        INPUT_SPEC: get_input_spec(soup),
+        OUTPUT_SPEC: get_output_spec(soup)
     }
 
-if __name__ == '__main__':
+def main():
+    existing_problem_ids = set()
+    try:
+        with open(DATASET_FILE, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                existing_problem_ids.add((row[CONTEST_ID], row[PROBLEM_ID]))
+    except FileNotFoundError:
+        print('Dataset file does not exist. Creating it')
+    print('Rows already processed:', existing_problem_ids)
 
-    pprinter = pprint.PrettyPrinter()
-    pprinter.pprint(get_problem_details(282, 'A'))
+    with open(DATASET_FILE, 'a+') as f:
+        writer = csv.DictWriter(f, fieldnames=[CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC])
+        if len(existing_problem_ids) == 0:
+            writer.writeheader()
+
+        with open(INPUT_FILE, 'r+') as f:
+            reader = csv.DictReader(f)
+            for input_row in reader:
+                if (input_row[CONTEST_ID], input_row[PROBLEM_ID]) not in existing_problem_ids:
+                    print('Processing:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
+                    try:
+                        writer.writerow(get_problem_details(input_row[CONTEST_ID], input_row[PROBLEM_ID]))
+                    except Exception as e:
+                        print('Failed to process:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
+                        print(e)
+                else:
+                    print('Problem already processed:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
+if __name__ == '__main__':
+    main()
+    # pprinter = pprint.PrettyPrinter()
+    # pprinter.pprint(get_problem_details(282, 'A'))
