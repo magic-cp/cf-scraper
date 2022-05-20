@@ -9,6 +9,7 @@ import requests
 import pprint
 import csv
 import os
+import argparse
 
 import cf_api
 from bs4 import BeautifulSoup
@@ -98,12 +99,22 @@ def load_problems():
 def load_contests():
     return cf_api.get_contests()
 
+
+def parse_args():
+    args = argparse.ArgumentParser(description='Utility to scrap information from Codeforces')
+
+    args.add_argument('--force-download-of-problems', help='Self explanatory', action='store_true')
+    args.add_argument('--force-download-of-contests', help='Self explanatory', action='store_true')
+
+    return args.parse_args()
+
 def main():
+    args = parse_args()
     print('Loading problems from CF...')
-    load_problems()
+    load_problems(force_reload=args.force_download_of_problems)
     print('✅ Done')
     print('Loading contests from CF...')
-    load_contests()
+    load_contests(force_reload=args.force_download_of_contests)
     print('✅ Done')
     existing_problem_ids = set()
     try:
