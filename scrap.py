@@ -4,11 +4,13 @@ Utilities to scrap the problem details of a codeforces problem.
 Date created: 2022-05-16
 Date of when codeforces was studied for scraping: 2022-05-16
 """
+import json
 import requests
 import pprint
 import csv
 import os
 
+import cf_api
 from bs4 import BeautifulSoup
 
 PROBLEM_STATEMENT_SELECTOR = '.problem-statement'
@@ -26,6 +28,9 @@ TITLE = 'title'
 STATEMENT = 'statement'
 INPUT_SPEC = 'input_spec'
 OUTPUT_SPEC = 'output_spec'
+
+CF_PROBLEMS = 'input/problems.json'
+CF_CONTESTS = 'input/contests.json'
 
 def get_csv_reader(file_name):
     with open(file_name, 'w+') as csv_file:
@@ -67,7 +72,39 @@ def get_problem_details(contest_id, problem_id):
         OUTPUT_SPEC: get_output_spec(soup)
     }
 
+def load_and_store_response(file_name):
+    def dec(func):
+        def wrapped(*args, **kwargs):
+            force_reload = kwargs['force_reload'] if 'force_reload' in kwargs else False
+            if not force_reload and os.path.exists(file_name):
+                with open(file_name, 'r') as f:
+                    return json.load(f)
+
+            problems_json = func()
+
+
+            with open(file_name, 'w') as f:
+                json.dump(problems_json, f, indent=2)
+
+            return problems_json
+        return wrapped
+    return dec
+
+@load_and_store_response(CF_PROBLEMS)
+def load_problems():
+    return cf_api.get_problems()
+
+@load_and_store_response(CF_CONTESTS)
+def load_contests():
+    return cf_api.get_contests()
+
 def main():
+    print('Loading problems from CF...')
+    load_problems()
+    print('✅ Done')
+    print('Loading contests from CF...')
+    load_contests()
+    print('✅ Done')
     existing_problem_ids = set()
     try:
         with open(DATASET_FILE, 'r') as f:
@@ -76,7 +113,6 @@ def main():
                 existing_problem_ids.add((row[CONTEST_ID], row[PROBLEM_ID]))
     except FileNotFoundError:
         print('Dataset file does not exist. Creating it')
-    print('Rows already processed:', existing_problem_ids)
 
     with open(DATASET_FILE, 'a+') as f:
         writer = csv.DictWriter(f, fieldnames=[CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC])
