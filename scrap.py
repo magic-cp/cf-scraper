@@ -10,6 +10,7 @@ import pprint
 import csv
 import os
 import argparse
+from dataclasses import dataclass
 
 import cf_api
 from bs4 import BeautifulSoup
@@ -73,13 +74,38 @@ def get_problem_details(contest_id, problem_id):
         OUTPUT_SPEC: get_output_spec(soup)
     }
 
-def load_and_store_response(file_name):
+@dataclass
+class Contest:
+    """
+    Small representation of a contest from CF API
+    """
+    name: str
+    phase: str
+    contest_id: int
+
+@dataclass
+class Problem:
+    """
+    Small representation of a problem from CF API
+    """
+    index: str
+    contest_id: int
+    name: str
+
+def map_to_contest(cf_response):
+    return [Contest(contest['name'], contest['phase'], contest['id']) for contest in cf_response['result']]
+
+def map_to_problem(cf_response):
+    return [Problem(problem['index'], problem['contestId'], problem['name']) for problem in cf_response['result']['problems']]
+
+
+def load_and_store_response(file_name, mapper):
     def dec(func):
         def wrapped(*args, **kwargs):
             force_reload = kwargs['force_reload'] if 'force_reload' in kwargs else False
             if not force_reload and os.path.exists(file_name):
                 with open(file_name, 'r') as f:
-                    return json.load(f)
+                    return mapper(json.load(f))
 
             problems_json = func()
 
@@ -87,15 +113,15 @@ def load_and_store_response(file_name):
             with open(file_name, 'w') as f:
                 json.dump(problems_json, f, indent=2)
 
-            return problems_json
+            return mapper(problems_json)
         return wrapped
     return dec
 
-@load_and_store_response(CF_PROBLEMS)
+@load_and_store_response(CF_PROBLEMS, map_to_problem)
 def load_problems():
     return cf_api.get_problems()
 
-@load_and_store_response(CF_CONTESTS)
+@load_and_store_response(CF_CONTESTS, map_to_contest)
 def load_contests():
     return cf_api.get_contests()
 
@@ -111,11 +137,14 @@ def parse_args():
 def main():
     args = parse_args()
     print('Loading problems from CF...')
-    load_problems(force_reload=args.force_download_of_problems)
+    problems = load_problems(force_reload=args.force_download_of_problems)
     print('✅ Done')
     print('Loading contests from CF...')
-    load_contests(force_reload=args.force_download_of_contests)
+    contests = load_contests(force_reload=args.force_download_of_contests)
     print('✅ Done')
+    print(type(problems))
+    print(problems[:5])
+    print(contests[:5])
     existing_problem_ids = set()
     try:
         with open(DATASET_FILE, 'r') as f:
