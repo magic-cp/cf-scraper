@@ -57,9 +57,9 @@ def get_output_spec(soup: BeautifulSoup):
 
 def get_problem_details(contest_id, problem_id):
 
-    URL = f"https://codeforces.com/contest/{contest_id}/problem/${problem_id}"
+    url = f"https://codeforces.com/contest/{contest_id}/problem/{problem_id}"
 
-    page = requests.get(URL)
+    page = requests.get(url)
 
 
     soup = BeautifulSoup(page.content, "html.parser").select_one(PROBLEM_STATEMENT_SELECTOR)
@@ -155,7 +155,7 @@ def main():
         print('Dataset file does not exist. Creating it')
 
     with open(DATASET_FILE, 'a+') as f:
-        writer = csv.DictWriter(f, fieldnames=[CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC])
+        writer = csv.DictWriter(f, fieldnames=[CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC, URL_KEY])
         if len(existing_problem_ids) == 0:
             writer.writeheader()
 
