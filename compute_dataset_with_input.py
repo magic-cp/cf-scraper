@@ -1,5 +1,7 @@
 import csv
 import os
+from time import sleep
+import common
 import requests
 
 from bs4 import BeautifulSoup
@@ -54,11 +56,15 @@ def get_tags(soup: BeautifulSoup):
         tags.append(tag.text.strip())
     return ';'.join(tags)
 
-def get_problem_details(contest_id, problem_id):
+def get_problem_details(contest_id, problem_id, rcpc):
 
     url = f"https://codeforces.com/contest/{contest_id}/problem/{problem_id}"
 
-    page = requests.get(url)
+    print(url)
+    cookies = {
+        'RCPC': rcpc,
+    }
+    page = requests.get(url, cookies=cookies)
 
 
     soup = BeautifulSoup(page.content, "html.parser")
@@ -84,6 +90,11 @@ def main():
     except FileNotFoundError:
         print('Dataset file does not exist. Creating it')
 
+    arg_parser = common.default_argument_parser()
+    arg_parser.add_argument('--rcpc', required=True, type=str, help='RCPC token. Check the project\'s README to see how to get it')
+
+    args = arg_parser.parse_args()
+
     with open(DATASET_FILE, 'a+', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
         if len(existing_problem_ids) == 0:
@@ -95,9 +106,10 @@ def main():
                 if (input_row[CONTEST_ID], input_row[PROBLEM_ID]) not in existing_problem_ids:
                     print('Processing:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
                     try:
-                        problem_details = get_problem_details(input_row[CONTEST_ID], input_row[PROBLEM_ID])
+                        problem_details = get_problem_details(input_row[CONTEST_ID], input_row[PROBLEM_ID], args.rcpc)
                         print('Problem info', problem_details)
                         writer.writerow(problem_details)
+                        sleep(0.5)
                     except Exception as e:
                         print('Failed to process:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
                         print(e)
