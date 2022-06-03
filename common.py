@@ -13,6 +13,9 @@ from typing import List
 
 import cf_api
 
+CF_PROBLEMS = 'input/problems.json'
+CF_CONTESTS = 'input/contests.json'
+
 @dataclass
 class Contest:
     """

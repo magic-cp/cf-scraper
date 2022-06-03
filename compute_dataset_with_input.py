@@ -26,8 +26,6 @@ TAGS = 'tags'
 
 CSV_FIELDNAMES = [CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC, URL_KEY, TAGS]
 
-CF_PROBLEMS = 'input/problems.json'
-CF_CONTESTS = 'input/contests.json'
 
 def get_csv_reader(file_name):
     with open(file_name, 'w+') as csv_file:
