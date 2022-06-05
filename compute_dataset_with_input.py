@@ -1,6 +1,8 @@
 import csv
 import os
 from time import sleep
+import traceback
+from typing import Optional
 import common
 import requests
 
@@ -25,8 +27,9 @@ INPUT_SPEC = 'input_spec'
 OUTPUT_SPEC = 'output_spec'
 URL_KEY = 'url'
 TAGS = 'tags'
+IS_INTERACTIVE = 'is_interactive'
 
-CSV_FIELDNAMES = [CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC, URL_KEY, TAGS]
+CSV_FIELDNAMES = [CONTEST_ID, PROBLEM_ID, TITLE, STATEMENT, INPUT_SPEC, OUTPUT_SPEC, URL_KEY, TAGS, IS_INTERACTIVE]
 
 
 def get_csv_reader(file_name):
@@ -47,8 +50,11 @@ def get_problem_statement(soup: BeautifulSoup):
 def get_input_spec(soup: BeautifulSoup):
     return soup.select_one(INPUT_SPECIFICATION_SELECTOR).text
 
-def get_output_spec(soup: BeautifulSoup):
-    return soup.select_one(OUTPUT_SPECIFICATION_SELECTOR).text
+def get_output_spec(soup: BeautifulSoup) -> Optional[str]:
+    try:
+        return soup.select_one(OUTPUT_SPECIFICATION_SELECTOR).text
+    except AttributeError:
+        return None
 
 def get_tags(soup: BeautifulSoup):
     tags = []
@@ -65,9 +71,14 @@ def get_problem_details(contest_id, problem_id, rcpc):
         'RCPC': rcpc,
     }
     page = requests.get(url, cookies=cookies)
+    # print('page status code', page.status_code)
 
 
     soup = BeautifulSoup(page.content, "html.parser")
+    # print(soup)
+
+    # Might be None if it's an interactive problem
+    output_spec = get_output_spec(soup)
 
     return {
         CONTEST_ID: contest_id,
@@ -75,9 +86,10 @@ def get_problem_details(contest_id, problem_id, rcpc):
         TITLE: get_problem_title(soup),
         STATEMENT: get_problem_statement(soup),
         INPUT_SPEC: get_input_spec(soup),
-        OUTPUT_SPEC: get_output_spec(soup),
+        OUTPUT_SPEC: output_spec if output_spec else '',
         URL_KEY: url,
-        TAGS: get_tags(soup)
+        TAGS: get_tags(soup),
+        IS_INTERACTIVE: output_spec is None
     }
 
 def main():
@@ -107,14 +119,16 @@ def main():
                     print('Processing:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
                     try:
                         problem_details = get_problem_details(input_row[CONTEST_ID], input_row[PROBLEM_ID], args.rcpc)
-                        print('Problem info', problem_details)
+                        # print('Problem info', problem_details)
+                        print(f'Problem {input_row[CONTEST_ID]}{input_row[PROBLEM_ID]} processed')
                         writer.writerow(problem_details)
-                        sleep(0.5)
                     except Exception as e:
                         print('Failed to process:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
                         print(e)
+                        print(traceback.format_exc())
                 else:
-                    print('Problem already processed:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
+                    pass
+                    # print('Problem already processed:', input_row[CONTEST_ID], input_row[PROBLEM_ID])
 
 if __name__ == '__main__':
     main()
